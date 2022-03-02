@@ -6,7 +6,7 @@ AWS lambdaで日次バッチ的に利用することで、
 ＜設定項目＞
 ■初期設定
 ・EventBridgeによる定期実行の設定
-・タイムアウト時間の延長（3分ぐらいでOK？）
+・タイムアウト時間の延長（10分あれば十分？）
 
 ■更新時設定（初期にも必要）
 ・AWS lambdaのコード更新
@@ -28,9 +28,7 @@ AWS lambdaで日次バッチ的に利用することで、
 ＜残課題＞
 ・ログの出力
 ・タグによる自動停止の回避
-→　（Tag,Key）＝（'AutoAtop','False'）で止めないようにしようと考えているが、
-　　うまく動いているかは不明。
-　　sagemakerはたぶん動いている。
+→　（Tag,Key）＝（'AutoAtop','False'）で止めないようにしようと考えているが未対応
 """
 
 import json
@@ -58,12 +56,12 @@ def delete_sagemaker_studios(region):
                         AppType = app['AppType'],
                         AppName = app['AppName']
                     )
-                tags = client.list_tags(
-                    ResourceArn=desc['AppArn']
-                )['Tags']
-                for tag in tags:
-                    if tag['Key'] == 'AutoStop' and tag['Value'] == 'False':
-                        stop_resource = False
+                # tags = client.list_tags(
+                #     ResourceArn=desc['AppArn']
+                # )['Tags']
+                # for tag in tags:
+                #     if tag['Key'] == 'AutoStop' and tag['Value'] == 'False':
+                #         stop_resource = False
                 
                 if stop_resource:
                     res = client.delete_app(
@@ -95,12 +93,12 @@ def delete_sagemaker_endpoints(region):
                 )['Endpoints']
         for ep in ep_list:
             stop_resource = True
-            tags = client.list_tags(
-                ResourceArn=ep['EndpointArn']
-            )['Tags']
-            for tag in tags:
-                if tag['Key'] == 'AutoStop' and tag['Value'] == 'False':
-                    stop_resource = False
+            # tags = client.list_tags(
+            #     ResourceArn=ep['EndpointArn']
+            # )['Tags']
+            # for tag in tags:
+            #     if tag['Key'] == 'AutoStop' and tag['Value'] == 'False':
+            #         stop_resource = False
             
             if stop_resource:
                 res = client.delete_endpoint(
