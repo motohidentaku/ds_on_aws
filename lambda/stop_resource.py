@@ -72,8 +72,11 @@ def delete_sagemaker_studios(region):
                         AppType = app['AppType'],
                         AppName = app['AppName']
                     )
+                    print('stop {} in {}'.format(app['AppType'], region))
+                    print(res)
     except botocore.exceptions.ClientError as e:
-        print('region-error')
+        print('region-error in {} about {}'.format(region, 'sagemaker studio'))
+        print(e)
 
 def delete_sagemaker_endpoints(region):
     """
@@ -103,8 +106,11 @@ def delete_sagemaker_endpoints(region):
                 res = client.delete_endpoint(
                     EndpointName = ep['EndpointName']
                 )
+                print('stop {} in {}'.format('sagemaker endpoint', region))
+                print(res)
     except botocore.exceptions.ClientError as e:
-        print('region-error')
+        print('region-error in {} about {}'.format(region, 'sagemaker endpoint'))
+        print(e)
 
 def delete_comprehend_endpoints(region):
     """
@@ -136,9 +142,11 @@ def delete_comprehend_endpoints(region):
                     response = client.delete_endpoint(
                         EndpointArn= ep['EndpointArn']
                     )
+                    print('stop {} in {}'.format('comprehend endpoint', region))
                     print(response)
     except botocore.exceptions.ClientError as e:
-        print('region-error')
+        print('region-error in {} about {}'.format(region, 'comprehend endpoint'))
+        print(e)
 
 def pause_redshift_clusters(region):
     """
@@ -175,9 +183,11 @@ def pause_redshift_clusters(region):
                     response = client.pause_cluster(
                         ClusterIdentifier= clu['ClusterIdentifier']
                     )
+                    print('stop {} in {}'.format('redshift cluster', region))
                     print(response)
     except botocore.exceptions.ClientError as e:
-        print('region-error') 
+        print('region-error in {} about {}'.format(region, 'redshift cluster'))
+        print(e)
 
 def stop_resources():
     """
@@ -209,6 +219,7 @@ def lambda_handler(event, context):
     stop_resources()を実行するだけ
     """
     stop_resources()
+    print('all done')
     return {
         'statusCode': 200,
         'body': json.dumps('Success!')
