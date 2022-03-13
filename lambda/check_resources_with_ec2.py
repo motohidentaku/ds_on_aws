@@ -22,231 +22,243 @@ AWS lambdaで必要なタイミングで実行することで、
 ・AmazonSageMakerFullAccess
 ・AmazonRedshiftFullAccess
 ・ComprehendFullAccess
+・AmazonEC2FullAccess
+
 
 """
 
 import json
 import boto3
 import botocore
-from datetime import datetime, timedelta, date
 
-def check_ec2_instances(region, non_zero):
+def check_ec2_instances(client):
     """
-    ec2の['instances']が
-    runningならその数を表示する
+    ec2の['instances']のうち
+    runningの数を返す
 
     Parameters
     ----------
-    region : string
-        AWSのリージョン情報
+    client :  boto3.Session().client
+        適切な権限の付与された　service_name="ec2"　のclient
 
     returns
     -------
-    res : [string]
-        表示文章（サービスごとの稼働数のカウント結果）
+    res : int
+        サービスごとの稼働数のカウント結果
     """
-    client = boto3.Session().client(service_name="ec2", region_name=region)
-    cnt = {'EC2 instances':0}
-    res = []
 
-    try:
-        running_instances = client.describe_instances(
-            Filters=[
-                {
-                    'Name': 'instance-state-name',
-                    'Values': ['running']
-                }
-            ]
-        )['Reservations']
-        for reservation in running_instances:
-            cnt[ 'EC2 instances' ] += 1
-        for k,v in cnt.items():
-            if non_zero == 0:
-                res.append('Running Ec2 {} : {}'.format(k,v))
-            elif v > 0:
-                res.append('Running Ec2 {} : {}'.format(k,v))
-    except botocore.exceptions.ClientError as e:
-        res.append('region-error in {} about {}'.format(region, 'ec2'))
-        # print(e)
-    return res
-    
-def check_sagemaker_studios(region, non_zero):
+    running_instances = client.describe_instances(
+        Filters=[
+            {
+                'Name': 'instance-state-name',
+                'Values': ['running']
+            }
+        ]
+    )['Reservations']
+
+    return len(running_instances)
+
+
+
+def check_sagemaker_studios_kernel_gateway(client):
     """
-    sagemaker studioの['KernelGateway', 'JupyterServer']が
+    sagemaker studioの['KernelGateway']が
     InServiceならその数を表示する
 
     Parameters
     ----------
-    region : string
-        AWSのリージョン情報
+    client :  boto3.Session().client
+        適切な権限の付与された　service_name="sagemaker"　のclient
 
     returns
     -------
-    res : [string]
-        表示文章（サービスごとの稼働数のカウント結果）
+    cnt : int
+        サービスごとの稼働数のカウント結果
     """
-    client = boto3.Session().client(service_name="sagemaker", region_name=region)
-    cnt = {'KernelGateway':0, 'JupyterServer':0}
-    res = []
+    cnt = 0
 
-    try:
-        for app in client.list_apps()['Apps']:
-            if app['Status']=='InService' and app['AppType'] in ['KernelGateway', 'JupyterServer']:
-                cnt[ app['AppType'] ] += 1
-        for k,v in cnt.items():
-            if non_zero == 0:
-                res.append('InService sagemaker {} : {}'.format(k,v))
-            elif v > 0:
-                res.append('InService sagemaker {} : {}'.format(k,v))
-    except botocore.exceptions.ClientError as e:
-        res.append('region-error in {} about {}'.format(region, 'sagemaker studio'))
-        # print(e)
-    return res
-    
+    for app in client.list_apps()['Apps']:
+        if app['Status']=='InService' and app['AppType'] in ['KernelGateway']:
+            cnt += 1
 
-def check_sagemaker_endpoints(region, non_zero):
+    return cnt
+
+
+def check_sagemaker_studios_jupyter_server(client):
+    """
+    sagemaker studioの['JupyterServer']が
+    InServiceならその数を表示する
+
+    Parameters
+    ----------
+    client :  boto3.Session().client
+        適切な権限の付与された　service_name="sagemaker"　のclient
+
+    returns
+    -------
+    cnt : int
+        サービスごとの稼働数のカウント結果
+    """
+    cnt = 0
+
+    for app in client.list_apps()['Apps']:
+        if app['Status']=='InService' and app['AppType'] in ['JupyterServer']:
+            cnt += 1
+
+    return cnt
+
+
+def check_sagemaker_endpoints(client):
     """
     sagemaker studioのendpointが
-    InServiceならその数を表示する
+    InServiceならその数を返す
 
     Parameters
     ----------
-    region : string
-        AWSのリージョン情報
+    client :  boto3.Session().client
+        適切な権限の付与された　service_name="sagemaker"　のclient
 
     returns
     -------
-    res : [string]
-        表示文章（サービスごとの稼働数のカウント結果）
+    res : int
+        サービスごとの稼働数のカウント結果
     """
-    client = boto3.Session().client(service_name="sagemaker", region_name=region)
-    res = []
-    try:
-        ep_list = client.list_endpoints(
-                    StatusEquals='InService'
-                )['Endpoints']
-        if non_zero == 0:
-            res.append('InService sagemaker endpoints : {}'.format(len(ep_list)))
-        elif len(ep_list) > 0:
-            res.append('InService sagemaker endpoints : {}'.format(len(ep_list)))
-    except botocore.exceptions.ClientError as e:
-        res.append('region-error in {} about {}'.format(region, 'sagemaker endpoint'))
-    return res
+    
+    ep_list = client.list_endpoints(
+                StatusEquals='InService'
+            )['Endpoints']
 
-def check_comprehend_endpoints(region, non_zero):
+    return len(ep_list)
+
+def check_comprehend_endpoints(client):
     """
     comprehendのendpointが
     IN_SERVICEならその数を表示する
 
     Parameters
     ----------
-    region : string
-        AWSのリージョン情報
+    client :  boto3.Session().client
+        適切な権限の付与された　service_name="comprehend"　のclient
     
     returns
     -------
-    res : [string]
-        表示文章（サービスごとの稼働数のカウント結果）
+    res : int
+        サービスごとの稼働数のカウント結果
     """
-    client = boto3.Session().client(service_name="comprehend", region_name=region)
-    res = []
-    cnt = 0
-    try:
-        for ep in client.list_endpoints()['EndpointPropertiesList']:
-            if ep['Status'] == 'IN_SERVICE':
-                cnt += 1
-        if non_zero == 0:
-            res.append('IN_SERVICE comprehend endpoints : {}'.format(cnt))
-        elif cnt > 0:
-            res.append('IN_SERVICE comprehend endpoints : {}'.format(cnt))
-    except botocore.exceptions.ClientError as e:
-        res.append('region-error in {} about {}'.format(region, 'comprehend endpoint'))
-    return res
 
-def check_redshift_clusters(region, non_zero):
+    cnt = 0
+    for ep in client.list_endpoints()['EndpointPropertiesList']:
+        if ep['Status'] == 'IN_SERVICE':
+            cnt += 1
+
+    return cnt
+
+def check_redshift_clusters(client):
     """
     redshiftのclusterが
     ['deleting', 'paused']以外ならその数を表示する
 
     Parameters
     ----------
-    region : string
-        AWSのリージョン情報
+    client :  boto3.Session().client
+        適切な権限の付与された　service_name="redshift"　のclient
     
     returns
     -------
-    res : [string]
-        表示文章（サービスごとの稼働数のカウント結果）
+    res : int
+        サービスごとの稼働数のカウント結果
     """
-    client = boto3.Session().client(service_name="redshift", region_name=region)
-    res = []
+
     cnt = 0
-    try:
-        for clu in client.describe_clusters()['Clusters']:
-            if not clu['ClusterStatus'] in ['deleting', 'paused']:
-                cnt += 1
-        if non_zero == 0:
-            res.append('active redshift endpoints : {}'.format(cnt))
-        elif cnt > 0:
-            res.append('active redshift endpoints : {}'.format(cnt))
-    except botocore.exceptions.ClientError as e:
-        res.append('region-error in {} about {}'.format(region, 'redshift cluster'))
-    return res
+    
+    for clu in client.describe_clusters()['Clusters']:
+        if not clu['ClusterStatus'] in ['deleting', 'paused']:
+            cnt += 1
+        
+    return cnt
 
 
-def check_resources(service_name, func, region_result, non_zero):
+def check_resources(service_name, service_name_text, func):
     """
-    redshiftのclusterが
-    ['deleting', 'paused']以外ならその数を表示する
+    指定サービスの全リージョンに対してサービス稼働数を取得する
 
     Parameters
     ----------
     service_name : string
         AWSのサービス名　boto3.Session().clientのservice_nameに引き渡す
+    service_name_text : string
+        文字列を出力するときのサービス名
+    func : string
+        service実行件数を取得するための関数名
     
     returns
     -------
-    res : [string]
-        表示文章（サービスごとの稼働数のカウント結果）
+    region_result : dict()
+        サービスごとの稼働数のカウント結果
+        [region][service_name_text]
     """
+
+    region_result = dict()
+
+    # OptInしないと使えないリージョン
+    optout_regions = ['af-south-1', 'ap-east-1', 'eu-south-1', 'me-south-1']
+    # 指定サービスのregionを取得
     regions = boto3.Session().get_available_regions(service_name)
-    poi = dict()
-    for region in regions:
+
+    # OptInしないと使えないリージョンを除いて検索を実施
+    for region in [i for i in regions if i not in optout_regions]:
         if not region in region_result:
-            region_result[region] = []
-        region_result[region] += func(region, non_zero)
+            region_result[region] = dict()
+
+        client = boto3.Session().client(service_name=service_name, region_name=region)
+        try:
+            region_result[region][service_name_text] = func(client)
+            
+        except botocore.exceptions.ClientError as e:
+            print('region-error in {} about {}'.format(region, service_name_text))
+
 
     return region_result
 
+def deepupdate(dict_base, other):
+  for k, v in other.items():
+    if isinstance(v, dict) and k in dict_base:
+      deepupdate(dict_base[k], v)
+    else:
+      dict_base[k] = v
 
 def check_all_resources():
     """
     サービスチェック関数を全リージョンについて実行する
     """
     region_result = dict()
-    non_zero = 1
-
-    # sagemaker
-    # region_result = check_resources('sagemaker', check_sagemaker_endpoints, region_result, non_zero)
-    region_result = check_resources('sagemaker', check_sagemaker_studios, region_result, non_zero)
-    # redshift
-    region_result = check_resources('redshift', check_redshift_clusters, region_result, non_zero)
-    # redshift
-    region_result = check_resources('comprehend', check_comprehend_endpoints, region_result, non_zero)
-    # ec2
-    region_result = check_resources('ec2', check_ec2_instances, region_result, non_zero)
-
     
+    # sagemaker
+    deepupdate(region_result, check_resources('sagemaker', 'sagemaker_kernel_gateway', check_sagemaker_studios_kernel_gateway))
+    deepupdate(region_result, check_resources('sagemaker', 'sagemaker_jupyter_server', check_sagemaker_studios_jupyter_server))
+    # redshift
+    deepupdate(region_result, check_resources('redshift', 'redshift_clusters', check_redshift_clusters))
+    # redshift
+    deepupdate(region_result, check_resources('comprehend', 'comprehend_endpoints', check_comprehend_endpoints))
+    # ec2
+    deepupdate(region_result, check_resources('ec2', 'ec2 instances', check_ec2_instances))
+
+    # 出力
     res = []
-    for k,v in region_result.items():
-        if len(v) > 0: 
-            res.append(k)
-            res += v
+    print_flag = False
+    for region, v in region_result.items():
+        for service, cnt in v.items():
+            if cnt > 0: 
+                if not False:
+                    res.append('region: {}'.format(region))
+                res.append('  {} : {}'.format(service, cnt))
+                print_flag = True
+        if print_flag:
             res.append('====')
+            print_flag = False
     
     print(*res, sep='\n')
-
-
+    
     
 def lambda_handler(event, context):
     """
@@ -260,3 +272,6 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': json.dumps('Success!')
     }
+
+if __name__ == '__main__':
+    check_all_resources()
