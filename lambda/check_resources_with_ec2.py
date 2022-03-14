@@ -31,6 +31,53 @@ import json
 import boto3
 import botocore
 
+def get_ec2_instances_info():
+    """
+    全リージョンに対してEC2の稼働状況を取得する
+    
+    returns
+    -------
+    region_result : [string]
+        インスタンの稼働状況
+    """
+
+    ret = []
+
+    # OptInしないと使えないリージョン
+    optout_regions = ['af-south-1', 'ap-east-1', 'eu-south-1', 'me-south-1']
+    # 指定サービスのregionを取得
+    regions = boto3.Session().get_available_regions('ec2')
+
+    # OptInしないと使えないリージョンを除いて検索を実施
+    for region in [i for i in regions if i not in optout_regions]:
+        # if not region in region_result:
+        #     region_result[region] = []
+
+        client = boto3.Session().client(service_name='ec2', region_name=region)
+        try:
+            running_instances = client.describe_instances(
+                Filters=[
+                    {
+                        'Name': 'instance-state-name',
+                        'Values': ['running']
+                    }
+                ]
+            )['Reservations']
+
+            for ec2_reservation in running_instances:
+                for ec2_instance in ec2_reservation['Instances']:
+                    ec2_instance_id = ec2_instance['InstanceId']
+                    ec2_instance_type = ec2_instance['InstanceType']
+                    
+                    ret.append('region : {}, InstanceId : {}, InstanceType : {}'.format(region, ec2_instance_id, ec2_instance_type))
+            
+        except botocore.exceptions.ClientError as e:
+            print('region-error in {} about {}'.format(region, service_name_text))
+
+
+    return ret
+
+
 def check_ec2_instances(client):
     """
     ec2の['instances']のうち
@@ -267,6 +314,7 @@ def lambda_handler(event, context):
     check_resources()を実行するだけ
     """
     check_all_resources()
+    print(*get_ec2_instances_info(), sep='\n')
     print('all done')
     return {
         'statusCode': 200,
