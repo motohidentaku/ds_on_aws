@@ -164,11 +164,10 @@ def lambda_handler(event, context):
 
     if auth_id != '':
         costall, msg = getCost(auth_id)
+        msg = 'this month costs: $ ' + str("{:.1f}".format(costall)) + '\n\n```' + msg + '```'
     else:
         msg = 'Not a valid account name or password.'
-    #print(msg)
-    #msg = 'this month costs: $ ' + str("{:.1f}".format(costall)) + '\n\n```' + msg + '```'
-    print('this month costs: $ ' + str("{:.1f}".format(costall)) + '\n\n```' + msg + '```')
+    print(msg)
     send_slack_message(msg, BOT_USERNAME, SLACK_CHANNEL, SLACK_ENDPOINT_URL)
 
     return {
